@@ -1,11 +1,3 @@
-"""
-Aplicação 1: CPU-bound (porta 8001)
-
-    GET /cpu?n=30000
-    conta quantos números primos existem entre 2 e n.
-
-Só faz contas, sem usar memória ou disco, então o limite é o processador.
-"""
 import os
 from concurrent.futures import ProcessPoolExecutor
 
@@ -26,7 +18,6 @@ def contar_primos(n):
 
 
 def main():
-    # Um processo por CPU, pois threads em Python não calculam em paralelo (GIL)
     num_processos = os.cpu_count() or 1
     pool = ProcessPoolExecutor(max_workers=num_processos)
 
