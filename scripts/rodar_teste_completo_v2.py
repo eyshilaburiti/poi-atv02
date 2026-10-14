@@ -57,7 +57,7 @@ def main():
     try:
         ssh_cmd = f"sshpass -p {VM_PASSWORD} ssh {VM_USER}@{VM_IP}"
         subprocess.run(
-            f"{ssh_cmd} 'sync; echo 3 > /proc/sys/vm/drop_caches'",
+            f"{ssh_cmd} 'sync; echo osboxes.org | sudo -S sh -c \"echo 3 > /proc/sys/vm/drop_caches\"'",
             shell=True,
             check=True,
             capture_output=True

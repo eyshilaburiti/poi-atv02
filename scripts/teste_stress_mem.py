@@ -8,11 +8,15 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import statistics
 
 VM_IP = "192.168.10.14"
+VM_USER = "osboxes"
+VM_PASSWORD = "osboxes.org"
 PORT = 8002
 RESULTADOS = "teste_stress_mem.csv"
 TIMEOUT = 300
 MB_FIXO = 128
 HOLD_MS_FIXO = 200
+INTERVALO_ENTRE_NIVEIS = 60  # segundos de pausa entre níveis
+WARMUP_REQUISICOES = 3       # requisições de aquecimento antes do teste
 
 DEMANDAS = {
     "nivel_1": 5,
@@ -123,14 +127,42 @@ def executar_stress_test(mb, hold_ms, demanda_nome, num_requisicoes):
         'timestamp': datetime.now().isoformat()
     }
 
+def limpar_cache_vm():
+    """Limpa page cache e swap residual na VM entre níveis de demanda."""
+    import subprocess
+    ssh_cmd = f"sshpass -p {VM_PASSWORD} ssh {VM_USER}@{VM_IP}"
+    try:
+        subprocess.run(
+            f"{ssh_cmd} 'sync; echo {VM_PASSWORD} | sudo -S sh -c \"echo 3 > /proc/sys/vm/drop_caches\"'",
+            shell=True, capture_output=True, timeout=15
+        )
+    except Exception:
+        pass
+
+
+def warmup():
+    """Requisições de aquecimento para estabilizar a aplicação."""
+    print(f"  Warmup: {WARMUP_REQUISICOES} requisições...", end="", flush=True)
+    for _ in range(WARMUP_REQUISICOES):
+        fazer_requisicao(MB_FIXO, HOLD_MS_FIXO)
+    print(" ✓")
+
+
 print(f"Iniciando stress test com memória FIXA em {MB_FIXO} MB...")
 print("Variando apenas a concorrência (número de requisições simultâneas)")
+print()
+
+warmup()
 print()
 
 todos_resultados = []
 
 print(f"Testando mb = {MB_FIXO}, hold_ms = {HOLD_MS_FIXO}")
-for demanda_nome, num_req in DEMANDAS.items():
+for i, (demanda_nome, num_req) in enumerate(DEMANDAS.items()):
+    if i > 0:
+        print(f"  Limpando cache e aguardando {INTERVALO_ENTRE_NIVEIS}s...", flush=True)
+        limpar_cache_vm()
+        time.sleep(INTERVALO_ENTRE_NIVEIS)
     resultado = executar_stress_test(MB_FIXO, HOLD_MS_FIXO, demanda_nome, num_req)
     todos_resultados.append(resultado)
 
