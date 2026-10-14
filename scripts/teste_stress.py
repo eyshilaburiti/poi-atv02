@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import statistics
 
 # Configuração
-VM_IP = "192.168.10.10"
+VM_IP = "192.168.10.14"
 PORT = 8001
 RESULTADOS = "teste_stress.csv"
 TIMEOUT = 300  # 5 minutos por requisição
