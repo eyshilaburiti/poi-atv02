@@ -273,4 +273,71 @@ if (nrow(vmstat_dados) > 0) {
   cat("  ⚠ Sem dados de vmstat, pulando gráficos 5-7\n")
 }
 
+# --- Carregar dados de iostat ---
+
+iostat_dados <- data.frame()
+
+for (dir_name in subdirs) {
+  path <- file.path(base_dir, dir_name, "iostat.csv")
+  if (file.exists(path)) {
+    df_io <- read.csv(path)
+    df_io <- df_io %>% mutate(across(everything(), as.numeric)) %>% filter(!is.na(w_s))
+
+    demandas_teste <- sort(unique(dados$num_requisicoes))
+    n_demandas <- length(demandas_teste)
+    chunk_size <- nrow(df_io) %/% n_demandas
+
+    for (i in seq_along(demandas_teste)) {
+      start_idx <- (i - 1) * chunk_size + 1
+      end_idx <- if (i == n_demandas) nrow(df_io) else i * chunk_size
+      chunk <- df_io[start_idx:end_idx, ]
+
+      if (nrow(chunk) > 0) {
+        io_row <- data.frame(
+          config = gerar_label(dir_name),
+          num_requisicoes = demandas_teste[i],
+          r_s = mean(chunk$r_s, na.rm = TRUE),
+          w_s = mean(chunk$w_s, na.rm = TRUE),
+          rkB_s = mean(chunk$rkB_s, na.rm = TRUE),
+          wkB_s = mean(chunk$wkB_s, na.rm = TRUE),
+          await_ms = mean(chunk$await_ms, na.rm = TRUE),
+          util_pct = mean(chunk$util_pct, na.rm = TRUE)
+        )
+        iostat_dados <- rbind(iostat_dados, io_row)
+      }
+    }
+  }
+}
+
+if (nrow(iostat_dados) > 0) {
+  iostat_dados$config <- factor(iostat_dados$config, levels = ordem)
+  iostat_dados$iops <- iostat_dados$r_s + iostat_dados$w_s
+  iostat_dados$throughput_kb <- iostat_dados$rkB_s + iostat_dados$wkB_s
+
+  # 8. Gráfico de facetas: IOPS, Await, Utilização
+  cat("  • Métricas de Disco (facetas)...")
+  io_facet <- iostat_dados %>%
+    select(config, num_requisicoes, iops, await_ms, util_pct) %>%
+    pivot_longer(cols = c(iops, await_ms, util_pct),
+                 names_to = "metrica", values_to = "valor") %>%
+    mutate(metrica = factor(metrica,
+      levels = c("iops", "await_ms", "util_pct"),
+      labels = c("IOPS (leitura + escrita)", "Await (ms)", "Utilização (%)")))
+
+  p8 <- ggplot(io_facet, aes(x = num_requisicoes, y = valor, color = config, group = config)) +
+    geom_line(linewidth = 1) + geom_point(size = 2.5) +
+    scale_color_manual(values = cores) +
+    scale_x_continuous(breaks = breaks_x) +
+    facet_wrap(~metrica, ncol = 1, scales = "free_y") +
+    labs(title = "Métricas de Disco vs Demanda", x = "Requisições Simultâneas",
+         y = NULL, color = recurso_label) +
+    theme_minimal() +
+    theme(plot.title = element_text(size = 14, face = "bold"), legend.position = "bottom",
+          strip.text = element_text(size = 11, face = "bold"))
+  ggsave(file.path(out_dir, "08_metricas_disco_vs_demanda.png"), p8, width = 10, height = 12, dpi = 300)
+  cat(" ✓\n")
+} else {
+  cat("  ⚠ Sem dados de iostat, pulando gráfico de disco\n")
+}
+
 cat("\n✅ Gráficos gerados em:", out_dir, "\n\n")
