@@ -1,0 +1,27 @@
+services:
+  cpu:
+    image: juliadsleal/poi-cpu:latest
+    build:
+      context: ./apps
+      dockerfile: Dockerfile.cpu
+    ports:
+      - "8001:8001"
+    restart: unless-stopped
+
+  mem:
+    image: juliadsleal/poi-mem:latest
+    build:
+      context: ./apps
+      dockerfile: Dockerfile.mem
+    ports:
+      - "8002:8002"
+    restart: unless-stopped
+
+  io:
+    image: juliadsleal/poi-io:latest
+    build:
+      context: ./apps
+      dockerfile: Dockerfile.io
+    ports:
+      - "8003:8003"
+    restart: unless-stopped
